@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<style>
+.axis .domain {
+  display: none;
+}
+
+.d3-tip {
+  line-height: 1;
+  font-weight: bold;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border-radius: 2px;
+  font-size: 12px;
+}
+
+
+
+</style>
+<svg width="960" height="500"></svg>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<!-- tooltip package  -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3-tip/0.7.1/d3-tip.min.js"></script>
+
+<script>
+
+// to allow for window resizing, replace width//height with dom window
+var svg = d3.select("svg"),
+    margin = {top: 20, right: 20, bottom: 30, left: 40},
+    width = +svg.attr("width") - margin.left - margin.right,
+    height = +svg.attr("height") - margin.top - margin.bottom,
+    g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+var x0 = d3.scaleBand()
+    .rangeRound([0, width])
+    .paddingInner(0.1);
+
+var x1 = d3.scaleBand()
+    .padding(0.05);
+
+var y = d3.scaleLinear()
+    .rangeRound([height, 0]);
+
+var z = d3.scaleOrdinal()
+    .range(["#98abc5", "#8a89a6"]);
+
+// var tooltip = d3.select("body")
+// .append("div")
+// .attr("class","tooltip")
+// .style("position", "absolute")
+// .style("padding", "0 10px")
+// .style("background", "white")
+// .style("display", "none")
+// .style('opacity', 0)
+
+var tip = d3.tip()
+.attr('class', 'd3-tip')
+.offset([-10,0])
+.html(function(d) {
+console.log("------------------------>",d, "d.key: ", d.key)
+  if(d.key === "Positive"){
+  return d.candidate+": Positive, "+d.perc_pos+"%"
+}else {
+  return d.candidate+": Negative, "+d.perc_ngtv+"%"
+}})
+
+svg.call(tip)
+
+d3.csv("data_bargraph.csv", function(d, i, columns) {
+  for (var i = 1, n = columns.length; i < n; ++i) d[columns[i]] = +d[columns[i]]
+  return d;
+}, function(error, data) {
+  if (error) throw error;
+  var keys = data.columns.slice(4);
+
+  x0.domain(data.map(function(d) { return d.Year; }));
+  x1.domain(keys).rangeRound([0, x0.bandwidth()]);
+  y.domain([0, d3.max(data, function(d) { return d3.max(keys, function(key) { return d[key]; }); })]).nice();
+
+  g.append("g")
+    .selectAll("g")
+    .data(data)
+    .enter().append("g")
+      .attr("transform", function(d) { return "translate(" + x0(d.Year) + ",0)"; })
+    .selectAll("rect")
+    // .transition().duration(500)
+    .data(function(d) { return keys.map(function(key) {
+      console.log(d)
+      // var pos = String(d.)
+      // console.log(key, d[key], d.Candidate, d.Perc_Pos, d.Perc_Ngtv)
+      return {key: key, value: d[key], candidate: d.Candidate, perc_pos: d.Perc_Pos, perc_ngtv: d.Perc_Ngtv};
+
+     });
+   })
+
+    .enter().append("rect")
+      .attr("x", function(d) { return x1(d.key); })
+      .attr("fill", function(d) { return z(d.key); })
+      .attr("y", height)
+
+
+      .on('mouseover', tip.show)
+      // .on('mouseover', function() {
+      //   tip.show();
+      //   d3.select(this)
+      //     .transition(500)
+      //     .style("fill", "#ffec84");
+      // })
+
+
+      .on('mouseout', tip.hide)
+      // function() {
+      //   tip.hide
+      //   // d3.select(this)
+      //   // .transition(500)
+      //   // .style("fill", this.color)
+      // })
+      .transition().duration(1000)
+      .ease(d3.easeExp)
+      .attr("y", function(d) { return y(d.value); })
+      .attr("width", x1.bandwidth())
+      .attr("height", function(d) { return height - y(d.value); })
+
+  g.append("g")
+      .attr("class", "axis")
+      .attr("transform", "translate(0," + height + ")")
+      .call(d3.axisBottom(x0));
+
+  g.append("g")
+      .attr("class", "axis")
+      .call(d3.axisLeft(y).ticks(null, "s"))
+    .append("text")
+      .attr("x", 2)
+      .attr("y", y(y.ticks().pop()) + 0.5)
+      .attr("dy", "0.32em")
+      .attr("fill", "#000")
+      .attr("font-weight", "bold")
+      .attr("text-anchor", "start")
+      .text("Ad Volume");
+
+  var legend = g.append("g")
+      .attr("font-family", "sans-serif")
+      .attr("font-size", 10)
+      .attr("text-anchor", "end")
+    .selectAll("g")
+    .data(keys.slice().reverse())
+    .enter().append("g")
+      .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; })
+
+  legend.append("rect")
+      .attr("x", width - 19)
+      .attr("width", 19)
+      .attr("height", 19)
+      .attr("fill", z);
+
+  legend.append("text")
+      .attr("x", width - 24)
+      .attr("y", 9.5)
+      .attr("dy", "0.32em")
+      .text(function(d) { return d; });
+
+// svg.transition()
+//         			.duration(300)
+//         			.ease('bounce')
+//                 .attr("height", function(d){
+//                     return d.value; }) //Just the data value
+//                 .attr("x", function(d, i){
+//                     return (i * 100); }) //width + 20px spacing
+//                 .attr({width: 80})
+//                 .attr("y", function(d){
+//                     return (300 - d.value); }) //Svg height minus data value
+//                 .style({ fill: "#a72d1a"});
+
+});
+</script>
